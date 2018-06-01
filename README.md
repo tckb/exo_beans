@@ -1,5 +1,5 @@
-    [![Inline docs](http://inch-ci.org/github/tckb/exo_beans.svg)](http://inch-ci.org/github/tckb/exo_beans)
 # ExoBeans
+[![Inline docs](http://inch-ci.org/github/tckb/exo_beans.svg)](http://inch-ci.org/github/tckb/exo_beans)
 
 **TODO: Add description**
 
