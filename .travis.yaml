@@ -1,3 +1,9 @@
 language: elixir
 elixir: '1.6.4'
 otp_release: '20.0'
+
+
+script:
+        - mix check_consistency
+install:
+        - mix deps.get        
