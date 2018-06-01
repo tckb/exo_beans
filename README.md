@@ -1,5 +1,5 @@
 # ExoBeans
-[![Inline docs](http://inch-ci.org/github/tckb/exo_beans.svg)](http://inch-ci.org/github/tckb/exo_beans)
+[![Inline docs](http://inch-ci.org/github/tckb/exo_beans.svg)](http://inch-ci.org/github/tckb/exo_beans) [![Maintainability](https://api.codeclimate.com/v1/badges/0759c82dd6d5b65031fb/maintainability)](https://codeclimate.com/github/tckb/exo_beans/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/0759c82dd6d5b65031fb/test_coverage)](https://codeclimate.com/github/tckb/exo_beans/test_coverage)
 
 **TODO: Add description**
 
