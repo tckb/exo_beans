@@ -1,3 +1,4 @@
+    [![Inline docs](http://inch-ci.org/github/tckb/exo_beans.svg)](http://inch-ci.org/github/tckb/exo_beans)
 # ExoBeans
 
 **TODO: Add description**
@@ -16,6 +17,3 @@ end
 ```
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/exo_beans](https://hexdocs.pm/exo_beans).
-

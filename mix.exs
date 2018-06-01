@@ -65,8 +65,7 @@ defmodule ExoBeans.MixProject do
         "dialyzer",
         "credo --all --strict",
         "inch --depth 2",
-        "coveralls",
-        "test"
+        "test --cover"
       ]
     ]
   end
