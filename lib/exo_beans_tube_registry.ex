@@ -2,6 +2,7 @@ defmodule ExoBeans.Tube.Registry do
   @moduledoc """
   the supervisor responsible for supervising the created tubes
   """
+  @default_tube :default
   use DynamicSupervisor
   alias ExoBeans.Tube
   require Logger
@@ -20,6 +21,14 @@ defmodule ExoBeans.Tube.Registry do
       strategy: :one_for_one,
       extra_arguments: []
     )
+  end
+
+  @doc """
+  returns the default tube for the clients
+  """
+  @spec default_tube :: {:ok, tube_t}
+  def default_tube do
+    create_tube(@default_tube)
   end
 
   @doc """

@@ -3,16 +3,15 @@ defmodule ExoBeans.Governer do
   the main supervisor governing all the other process in the application
   """
   use Supervisor
-  @store_name :internal_store
-  @client_metadata :client_metadata
-  @job_data_table :job_table
+  @store_name Application.get_env(:exo_beans, :store_name)
+  @client_metadata Application.get_env(:exo_beans, :client_metadata)
+  @job_data_table Application.get_env(:exo_beans, :job_data_table)
 
   @doc false
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @impl true
   @doc false
   def init(_args) do
     init_application()

@@ -71,7 +71,7 @@ defmodule ExoBeans.Client do
   def handle_info({:tcp, _, Commands.quit()}, state), do: close_client(state)
 
   defp close_client(%{socket: socket, transport: transport} = state) do
-    Dispatcher.client_disconnect()
+    Dispatcher.client_disconnected()
     transport.close(socket)
     {:stop, :normal, state}
   end
@@ -85,7 +85,12 @@ defmodule ExoBeans.Client do
         state
       ) do
     [tube_name | _rest] = raw_tube_name |> String.split(@crlf)
-    Dispatcher.dispatch_command(ClientCommands.tube_context(), [tube_name])
+
+    Dispatcher.dispatch_command(
+      :client,
+      {ClientCommands.tube_context(), tube_name}
+    )
+
     {:noreply, state}
   end
 
@@ -120,7 +125,7 @@ defmodule ExoBeans.Client do
         init_delay: String.to_integer(job_delay)
       )
 
-    Dispatcher.dispatch_command(ClientCommands.job_save(), job)
+    Dispatcher.dispatch_command(:client, {ClientCommands.job_save(), job})
     {:noreply, state}
   end
 
@@ -134,21 +139,31 @@ defmodule ExoBeans.Client do
       ) do
     [tube_name | _rest] = raw_tube_name |> String.split(@crlf)
 
-    Dispatcher.dispatch_command(ClientCommands.tube_watch(), [
-      tube_name
-    ])
+    Dispatcher.dispatch_command(
+      :client,
+      {ClientCommands.tube_watch(), tube_name}
+    )
 
     {:noreply, state}
   end
 
   def handle_info({:tcp, _, Worker.reserve()}, state) do
-    Dispatcher.dispatch_command(ClientCommands.job_request())
+    Dispatcher.dispatch_command(
+      :client,
+      {ClientCommands.job_request(), []}
+    )
+
     {:noreply, state}
   end
 
   def handle_info({:tcp, _, Worker.delete() <> <<raw_job_id::binary>>}, state) do
     [job_id | _rest] = raw_job_id |> String.split(@crlf)
-    Dispatcher.dispatch_command(ClientCommands.job_purge(), job_id)
+
+    Dispatcher.dispatch_command(
+      :client,
+      {ClientCommands.job_purge(), job_id}
+    )
+
     {:noreply, state}
   end
 
@@ -167,7 +182,7 @@ defmodule ExoBeans.Client do
       "#{inspect(tube)} has new jobs, sending request"
     end)
 
-    Dispatcher.dispatch_command(ClientCommands.job_request(), tube)
+    Dispatcher.dispatch_command(:tube, {ClientCommands.job_request(), tube})
     {:noreply, state}
   end
 

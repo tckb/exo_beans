@@ -6,5 +6,3 @@
 
 
 _Wow, such silent in here?! wait for the update on README, until then look around, but mind you, hear lies dragons! not for production use_
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)

@@ -2,4 +2,7 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-import_config "dev.exs"
+config :logger,
+  level: :info,
+  backends: [:console],
+  compile_time_purge_level: :info

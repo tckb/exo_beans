@@ -4,12 +4,13 @@ defmodule ExoBeans.Client.Command.Dispatcher do
 
   a client can expect `info` replies from the dispatcher with spec `{:reply,:dispatcher, message :: binary()}`
   """
+  @timeout 60_000
+
   alias ExoBeans.Tube.Registry, as: TubeRegistry
   alias ExoBeans.Server.Reply
   alias ExoBeans.Constants
   alias :poolboy, as: Pool
   alias ExoBeans.Constants.ClientCommands
-  @timeout 60_000
 
   require Logger
   require Constants
@@ -23,11 +24,11 @@ defmodule ExoBeans.Client.Command.Dispatcher do
 
   ## Examples
 
-       iex>ExoBeans.Client.Command.Dispatcher.dispatch_command(:client_connect)
+       iex>ExoBeans.Client.Command.Dispatcher.client_connected
        :ok
   """
   def client_connected do
-    dispatch_command(:client_connect)
+    dispatch_command(:client, {:client_connect, []})
   end
 
   @doc ~S"""
@@ -35,11 +36,11 @@ defmodule ExoBeans.Client.Command.Dispatcher do
 
   ## Examples
 
-       iex>ExoBeans.Client.Command.Dispatcher.dispatch_command(:client_disconnect)
+       iex>ExoBeans.Client.Command.Dispatcher.client_disconnected
        :ok
   """
-  def client_disconnect do
-    dispatch_command(:client_disconnect)
+  def client_disconnected do
+    dispatch_command(:client, {:client_disconnect, []})
   end
 
   @doc """
@@ -47,26 +48,22 @@ defmodule ExoBeans.Client.Command.Dispatcher do
 
   ## Examples
 
-       iex>ExoBeans.Client.Command.Dispatcher.dispatch_command(:client_connect)
+       iex>ExoBeans.Client.Command.Dispatcher.client_connected
        :ok
-       iex>ExoBeans.Client.Command.Dispatcher.dispatch_command(:client_disconnect)
+       iex>ExoBeans.Client.Command.Dispatcher.client_disconnected
        :ok
   """
   @spec dispatch_command(
-          dispatch_type :: atom(),
-          arguments :: list(String.t()) | any()
+          from :: :client | :tube | :admin,
+          {command :: atom(), arguments :: any()}
         ) :: :ok
-  def dispatch_command(dispatch_type, arguments \\ [])
 
-  def dispatch_command(dispatch_type, arguments)
-      when is_atom(dispatch_type) do
+  def dispatch_command(from, {command, data}) when from in [:client, :admin] do
     client_pid = self()
 
     Pool.transaction(
       __MODULE__,
-      fn pid ->
-        GenServer.cast(pid, {dispatch_type, client_pid, arguments} |> msg())
-      end,
+      fn pid -> GenServer.cast(pid, {command, client_pid, data}) end,
       @timeout
     )
 
@@ -76,7 +73,7 @@ defmodule ExoBeans.Client.Command.Dispatcher do
   @doc false
   # this is an explict notification from the tube of job availability,
   # send the request directly instead of asking for the dispatcher
-  def dispatch_command(ClientCommands.job_request(), tube) do
+  def dispatch_command(:tube, {ClientCommands.job_request(), tube}) do
     client_pid = self()
     GenServer.cast(tube, {ClientCommands.job_request(), client_pid, nil})
     :ok
@@ -90,32 +87,36 @@ defmodule ExoBeans.Client.Command.Dispatcher do
 
   @doc false
   def init(client_table) do
-    {:ok, client_table}
-  end
-
-  def handle_cast({:dispatch, {:client_connect, client_pid, _}}, client_table) do
-    :ets.insert(
-      client_table,
-      # clientpid -> current tube, watch tubes
-      {client_pid, :default, MapSet.new() |> MapSet.put(:default)}
-    )
-
-    {:noreply, client_table}
+    {:ok, {default_tube_name, _}} = TubeRegistry.default_tube()
+    {:ok, {client_table, default_tube_name}}
   end
 
   def handle_cast(
-        {:dispatch, {:client_disconnect, client_pid, _}},
-        client_table
+        {:client_connect, client_pid, _},
+        {client_table, default_tube_name} = state
+      ) do
+    :ets.insert(
+      client_table,
+      {client_pid, default_tube_name,
+       MapSet.new() |> MapSet.put(default_tube_name)}
+    )
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:client_disconnect, client_pid, _},
+        {client_table, _} = state
       ) do
     :ets.delete(client_table, client_pid)
-    {:noreply, client_table}
+    {:noreply, state}
   end
 
   #######
 
   def handle_cast(
-        {:dispatch, {ClientCommands.tube_context(), client_pid, [tube_name]}},
-        client_table
+        {ClientCommands.tube_context(), client_pid, tube_name},
+        {client_table, _} = state
       ) do
     {:ok, {registered_tube, _}} = TubeRegistry.create_tube(tube_name)
 
@@ -137,12 +138,12 @@ defmodule ExoBeans.Client.Command.Dispatcher do
       send_error(client_pid)
     end
 
-    {:noreply, client_table}
+    {:noreply, state}
   end
 
   def handle_cast(
-        {:dispatch, {ClientCommands.job_request(), client_pid, _}},
-        client_table
+        {ClientCommands.job_request(), client_pid, _},
+        {client_table, _} = state
       ) do
     Logger.debug(fn -> "#{inspect(client_pid)}> requesting job" end)
 
@@ -154,12 +155,12 @@ defmodule ExoBeans.Client.Command.Dispatcher do
       |> GenServer.cast({ClientCommands.job_request(), client_pid, nil})
     end)
 
-    {:noreply, client_table}
+    {:noreply, state}
   end
 
   def handle_cast(
-        {:dispatch, {ClientCommands.tube_watch(), client_pid, [tube_name]}},
-        client_table
+        {ClientCommands.tube_watch(), client_pid, tube_name},
+        {client_table, _} = state
       ) do
     {:ok, {registered_tube, _}} = TubeRegistry.create_tube(tube_name)
 
@@ -193,28 +194,29 @@ defmodule ExoBeans.Client.Command.Dispatcher do
       send_error(client_pid)
     end
 
-    {:noreply, client_table}
+    {:noreply, state}
   end
 
-  def handle_cast(
-        {:dispatch, {_, client_pid, _} = dispatch_data},
-        client_table
-      ) do
+  def handle_cast({:status, client_pid, _}, {client_table, _} = state) do
+    send(client_pid, :ets.tab2list(client_table))
+    {:noreply, state}
+  end
+
+  #######
+
+  def handle_cast({_, client_pid, _} = dispatch_data, {client_table, _} = state) do
     Logger.debug(fn ->
       "dispatching #{inspect(dispatch_data)} for #{inspect(client_pid)}"
     end)
 
     current_tube_of_client = :ets.lookup_element(client_table, client_pid, 2)
     GenServer.cast(current_tube_of_client, dispatch_data)
-    {:noreply, client_table}
+
+    {:noreply, state}
   end
 
   defp build_client_response(data) do
     {:reply, :dispatcher, Reply.serialize(data)}
-  end
-
-  defp msg(data) do
-    {:dispatch, data}
   end
 
   defp send_error(client_pid) do

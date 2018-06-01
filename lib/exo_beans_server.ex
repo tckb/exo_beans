@@ -59,6 +59,14 @@ defmodule ExoBeans.Server do
       [response_data_list |> Enum.intersperse(@spc) | @crlf]
     end
 
+    def deserialize(serialized_data) when is_list(serialized_data) do
+      [serialized_reply | @crlf] = serialized_data
+
+      serialized_reply
+      |> Enum.flat_map(&String.split(&1, @spc))
+      |> Enum.filter(&(String.length(&1) > 0))
+    end
+
     @doc """
       serializes the `data1` & `data2` togather in the format documented in [beanstalk protocol](https://github.com/kr/beanstalkd/blob/master/doc/protocol.txt)
     """
