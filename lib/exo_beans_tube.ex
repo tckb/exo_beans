@@ -108,9 +108,10 @@ defmodule ExoBeans.Tube do
           # job has been reserved to the client
           Process.send(
             client_pid,
-            build_client_response(["RESERVED", job_id, job_body_size], [
+            build_client_response(
+              ["RESERVED", job_id, job_body_size],
               job_body
-            ]),
+            ),
             [:noconnect]
           )
 
