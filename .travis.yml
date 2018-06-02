@@ -6,7 +6,6 @@ elixir:
   - 1.6
 otp_release:
   - 20.0
-scripts: mix coveralls.travis
 cache:
   directories:
     - ~/.mix
@@ -26,7 +25,16 @@ jobs:
         - MIX_ENV=dev
       before_script: travis_wait mix dialyzer --plt
       script: mix dialyzer --halt-exit-status
-    - stage: inch
+    - stage: test
       env:
-        - MIX_ENV=docs
-      script: mix inch.report
+        - MIX_ENV=dev
+      before_script: mix deps.get
+      script:
+        - mix test --cover
+        - mix coveralls.travis
+    - stage: docs
+      env:
+        - MIX_ENV=dev
+      script:
+        - mix inch --depth 2
+        - mix inch.report

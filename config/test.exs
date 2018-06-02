@@ -3,6 +3,6 @@
 use Mix.Config
 
 config :logger,
-  level: :info,
+  level: :warn,
   backends: [:console],
-  compile_time_purge_level: :info
+  compile_time_purge_level: :warn
