@@ -11,18 +11,7 @@ defmodule ExoBeans.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       # P-ersistent L-ookup T-able  is a compile cache containing the analysis of your app -- helps in speeding up dialyxir
-      dialyxir: [
-        plt_add_deps: :transitive,
-        ignore_warnings: "no local return",
-        flags: [
-          "-Wunmatched_returns",
-          :error_handling,
-          :race_conditions,
-          :underspecs,
-          :no_opaque
-        ],
-        remove_defaults: :unknown
-      ],
+      dialyzer: [ignore_warnings: "dialyzer.ignore-warnings"],
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.detail": :test,
@@ -47,15 +36,15 @@ defmodule ExoBeans.MixProject do
       {:poolboy, "~> 1.5.1"},
       {:epqueue, github: "silviucpp/epqueue"},
       # documentation
-      {:ex_doc, "~> 0.16", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.16", only: [:dev, :docs], runtime: false},
       # documentation coverage
-      {:inch_ex, "~> 0.5", only: [:dev, :test], runtime: false},
+      {:inch_ex, "~> 0.5", only: [:dev, :docs], runtime: false},
       # code linter
       {:credo, "~> 0.9.2", only: [:dev, :test], runtime: false},
       # code coverage
       {:excoveralls, "~> 0.7.4", only: [:dev, :test], runtime: false},
       # type safety
-      {:dialyxir, "~> 0.5.0", only: :dev, runtime: false}
+      {:dialyxir, "~> 0.5.0", only: [:dev, :test], runtime: false}
     ]
   end
 

@@ -66,8 +66,12 @@ defmodule ExoBeans.Server do
       [[data1 |> serialize() | data2] | @crlf]
     end
 
+    @doc """
+    deserializes the data serialized by `serialize/1` & `serialize/2`
+    """
     def deserialize(serialized_iolist) do
-      do_deserialize(serialized_iolist, [])
+      serialized_iolist
+      |> do_deserialize([])
       |> List.flatten()
       |> Enum.filter(&Kernel.!=(&1, @spc))
     end
