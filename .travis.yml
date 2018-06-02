@@ -27,7 +27,7 @@ jobs:
       script: mix dialyzer --halt-exit-status
     - stage: test
       env:
-        - MIX_ENV=dev
+        - MIX_ENV=test
       before_script: mix deps.get
       script:
         - mix test --cover
