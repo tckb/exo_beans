@@ -24,69 +24,69 @@ defmodule ExoBeans.Test.Client do
   doctest Dispatcher
   doctest Registry
 
-  test "client ⇄ dispatcher" do
-    client_pid = new_client()
-    send_ping(client_pid)
+  describe "[client ⇄ dispatcher] " do
+    test "1 client connect & disconnect" do
+      client_pid = new_client()
+      send_ping(client_pid)
 
-    # inform dispatcher that client is connected
-    send(client_pid, {:client_command, :connected})
+      # inform dispatcher that client is connected
+      send(client_pid, {:client_command, :connected})
 
-    # expect some metadata about the client to be stored
-    [{^client_pid, default_tube, default_watch_list}] =
-      get_client_meta(client_pid)
+      # expect some metadata about the client to be stored
+      [{^client_pid, default_tube, default_watch_list}] =
+        get_client_meta(client_pid)
 
-    {^default_tube, default_tube_pid} = Registry.find_tube(default_tube)
-    # check if default tube is alive
-    assert Process.alive?(default_tube_pid) == true
+      {^default_tube, default_tube_pid} = Registry.find_tube(default_tube)
+      # check if default tube is alive
+      assert Process.alive?(default_tube_pid) == true
 
-    # check if all the tubes in the watch list are actually alive
-    default_watch_list
-    |> MapSet.to_list()
-    |> Enum.each(fn watch_tube ->
-      {^watch_tube, watch_tube_pid} = Registry.find_tube(watch_tube)
-      assert Process.alive?(watch_tube_pid) == true
-    end)
+      # check if all the tubes in the watch list are actually alive
+      default_watch_list
+      |> MapSet.to_list()
+      |> Enum.each(fn watch_tube ->
+        {^watch_tube, watch_tube_pid} = Registry.find_tube(watch_tube)
+        assert Process.alive?(watch_tube_pid) == true
+      end)
 
-    # inform dispatcher that client is connected
-    send(client_pid, {:client_command, :disconnected})
+      # inform dispatcher that client is connected
+      send(client_pid, {:client_command, :disconnected})
 
-    assert get_client_meta(client_pid) == []
-  end
+      assert get_client_meta(client_pid) == []
+    end
 
-  test "client ⇄ job" do
-    {:ok, {_, tube_pid}} = Registry.default_tube()
+    test "1 client put & reserve in seq" do
+      {:ok, {_, tube_pid}} = Registry.default_tube()
 
-    client_pid = new_client()
-    send_ping(client_pid)
+      client_pid = new_client()
+      send_ping(client_pid)
 
-    # create a job
-    length = 1000
-    some_data = next_bytes(length)
-    delay = 0
-    job = Job.new({length, some_data}, job_opts(delay, 1, 10))
+      # create a job
+      length = 1000
+      some_data = next_bytes(length)
+      delay = 0
+      job = Job.new({length, some_data}, job_opts(delay, 1, 10))
 
-    # inform dispatcher that client is connected
-    send(client_pid, {:client_command, :connected})
-    # client job save
-    send(client_pid, {:client_command, {ClientCommands.job_save(), job}})
+      # inform dispatcher that client is connected
+      send(client_pid, {:client_command, :connected})
+      # client job save
+      send(client_pid, {:client_command, {ClientCommands.job_save(), job}})
 
-    # see if the job has been inserted
-    assert_receive {{:tube, ^tube_pid}, data}, 1_000
+      # see if the job has been inserted
+      assert_receive {{:tube, ^tube_pid}, data}, 1_000
+      job_id = validate_replies(ClientCommands.job_save(), data)
+      #
+      # # job id is always a positive integer
+      assert String.to_integer(job_id) > 0
 
-    job_id = validate_replies(ClientCommands.job_save(), data)
+      # now ask for reservation
+      command = ClientCommands.job_request()
+      send(client_pid, {:client_command, {command, []}})
+      assert_receive {{:tube, ^tube_pid}, raw_job_data}, 1_000
+      {^job_id, ^length, ^some_data} = validate_replies(command, raw_job_data)
 
-    # job id is always a positive integer
-    assert String.to_integer(job_id) > 0
-
-    # client asking for reservation
-    send(client_pid, {:client_command, {ClientCommands.job_request(), []}})
-
-    assert_receive {{:tube, ^tube_pid}, raw_job_data}, 1_000
-
-    job_data = validate_replies(ClientCommands.job_request(), raw_job_data)
-
-    # inform dispatcher that client is connected
-    send(client_pid, {:client_command, :disconnected})
+      # inform dispatcher that client is connected
+      send(client_pid, {:client_command, :disconnected})
+    end
   end
 
   defp job_opts(job_delay, job_priority, job_ttr) do
@@ -119,10 +119,6 @@ defmodule ExoBeans.Test.Client do
     |> Enum.filter(fn {pid, _, _} -> pid == client_pid end)
   end
 
-  defp dump_meta do
-    :ets.tab2list(@client_metadata)
-  end
-
   defp send_ping(pid) do
     # validate if the client is actually working
     send(pid, {:ping, self()})
@@ -136,6 +132,10 @@ defmodule ExoBeans.Test.Client do
       ClientCommands.job_save() ->
         assert ["INSERTED", job_id] = server_reply
         job_id
+
+      ClientCommands.job_request() ->
+        assert ["RESERVED", job_id, job_body_size, job_body] = server_reply
+        {job_id, job_body_size, job_body}
     end
   end
 
