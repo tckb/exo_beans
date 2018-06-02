@@ -12,6 +12,5 @@ before_script:
 script:
   - MIX_ENV=dev mix check_consistency
 after_script:
-  - cd $TRAVIS_BUILD_DIR
-  - MIX_ENV=docs mix inch.report
+  - mix inchi.report
   - mix docs
