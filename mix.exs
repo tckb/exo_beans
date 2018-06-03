@@ -35,6 +35,9 @@ defmodule ExoBeans.MixProject do
       {:ranch, "~> 1.5", override: true},
       {:poolboy, "~> 1.5.1"},
       {:epqueue, github: "silviucpp/epqueue"},
+      {:ebeanstalkd,
+       github: "silviucpp/ebeanstalkd", only: :test, runtime: false},
+
       # documentation
       {:ex_doc, "~> 0.16", only: [:dev, :docs], runtime: false},
       # documentation coverage
