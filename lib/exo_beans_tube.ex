@@ -45,7 +45,9 @@ defmodule ExoBeans.Tube do
     :ets.insert(job_data_table, {job_id, job_data, nil})
 
     Logger.debug(fn ->
-      "job_meta: #{inspect(job_meta)} job_delay: #{job_state.data.delay}"
+      "job_meta: #{inspect(job_meta)} job_delay: #{job_state.data.delay} waiting_clients: #{
+        inspect(waiting_clients)
+      }"
     end)
 
     waiting_clients =
@@ -57,7 +59,7 @@ defmodule ExoBeans.Tube do
         # queue the job after it has done the waiting
         Process.send_after(
           self(),
-          {:heap_update, :insert,
+          {:heap_update, :delayed_job_ready,
            {{job_id, job_ttr, job_state |> State.wakeup()}, job_priority}},
           job_state.data.delay * 1000
         )
@@ -205,18 +207,38 @@ defmodule ExoBeans.Tube do
     {:noreply, state}
   end
 
+  # a delayed job must have been updated, add to heap and inform clients
   def handle_info(
         {:heap_update, update, {{job_id, _, _} = job_metadata, job_priority}},
-        {job_data_table, ready_heap, _, _} = state
+        {job_data_table, ready_heap, tube, waiting_clients}
       )
-      when update == :insert do
+      when update == :delayed_job_ready do
     Logger.debug(fn ->
       ":heap_update with #{update} received for #{job_id}"
     end)
 
     {:ok, heap_job_ref} = ready_heap |> Heap.insert(job_metadata, job_priority)
     update_heap_ref(job_data_table, job_id, heap_job_ref)
-    {:noreply, state}
+
+    # we just received a new job, see if there are any waiting clients
+    waiting_clients =
+      case waiting_clients do
+        # no waiting li
+        [client | remaining] ->
+          Logger.debug(fn ->
+            "notifying waiting client #{inspect(client)}"
+          end)
+
+          # inform client about the new job
+          Process.send(client, tube |> job_available_notify(), [:noconnect])
+          # send back the remaining
+          remaining
+
+        _ ->
+          waiting_clients
+      end
+
+    {:noreply, {job_data_table, ready_heap, tube, waiting_clients}}
   end
 
   def handle_call(
