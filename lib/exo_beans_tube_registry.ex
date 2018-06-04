@@ -77,6 +77,9 @@ defmodule ExoBeans.Tube.Registry do
         :ok
         iex>ExoBeans.Tube.Registry.delete_tube(:unknown_tube)
         {:error, :not_found}
+        iex>{:ok, {:"tube 007",tube_pid}} = ExoBeans.Tube.Registry.create_tube("tube 007")
+        iex>ExoBeans.Tube.Registry.delete_tube("tube 007")
+        :ok
   """
   @spec delete_tube(tube_name :: binary() | atom() | pid()) ::
           :ok | {:error, :not_found}
@@ -102,6 +105,15 @@ defmodule ExoBeans.Tube.Registry do
 
   @doc """
    finds the tube with the given tube `name`
+
+   ## Examples
+
+        iex>{:ok, {:random_tube,tube_pid}} = ExoBeans.Tube.Registry.create_tube(:random_tube)
+        iex>{:random_tube,^tube_pid} = ExoBeans.Tube.Registry.find_tube(:random_tube)
+        iex>ExoBeans.Tube.Registry.find_tube(:no_exist_tube)
+        nil
+        iex>ExoBeans.Tube.Registry.find_tube("no_exist_tube")
+        nil
   """
   @spec find_tube(tube_name :: binary() | atom()) :: tube_t | nil
   def find_tube(name) when is_binary(name) do
@@ -118,7 +130,18 @@ defmodule ExoBeans.Tube.Registry do
   end
 
   @doc """
-   returns the list of registered tubes
+   returns the list of registered tubes.
+
+   ## Examples
+
+        iex>{:ok, {:random_tube1,tube_pid_1}} = ExoBeans.Tube.Registry.create_tube(:random_tube1)
+        iex>{:ok, {:random_tube2,tube_pid_2}} = ExoBeans.Tube.Registry.create_tube(:random_tube2)
+        iex>all_tubes = ExoBeans.Tube.Registry.tubes()
+        iex>^tube_pid_1 = all_tubes |> Keyword.fetch!(:random_tube1)
+        iex>^tube_pid_2 = all_tubes |> Keyword.fetch!(:random_tube2)
+        iex>all_tubes |> Keyword.fetch(:unknown_tube)
+        :error
+
   """
   @spec tubes :: list(tube_t)
   def tubes do
@@ -130,7 +153,14 @@ defmodule ExoBeans.Tube.Registry do
   end
 
   @doc """
-  returns the number of registered tubes
+  returns the number of registered tubes.
+
+  ## Examples
+
+       iex>{:ok, {:random_tube,tube_pid}} = ExoBeans.Tube.Registry.create_tube(:random_tube)
+       iex>{:ok, {:"tube 007",_}} = ExoBeans.Tube.Registry.create_tube("tube 007")
+       iex>ExoBeans.Tube.Registry.count() == length(ExoBeans.Tube.Registry.tubes())
+       true
   """
   @spec count() :: integer()
   def count do

@@ -43,6 +43,17 @@ defmodule ExoBeans.Test.Client do
         assert Process.alive?(watch_tube_pid) == true
       end)
 
+      # check for invalid jobs
+      send(
+        client_pid,
+        {:client_command, {ClientCommands.job_purge(), "0000000"}}
+      )
+
+      # see if the job has been inserted
+      assert_receive {{:tube, _}, data}, 1_000
+      response = validate_replies(ClientCommands.job_purge(), data)
+      assert response == "NOT_FOUND"
+
       # inform dispatcher that client is connected
       send(client_pid, {:client_command, :disconnected})
 
@@ -83,68 +94,6 @@ defmodule ExoBeans.Test.Client do
       send(client_pid, {:client_command, :disconnected})
     end
   end
-
-  # describe "[🧔🧔🧔 ⥃ 💻] " do
-  #   test "multiple tubes, put & reserve" do
-  #     tube_context = "topic: #{:rand.uniform(1000)}"
-  #
-  #     client1 = new_client()
-  #     send(client1, {:client_command, :connected})
-  #
-  #     send(
-  #       client1,
-  #       {:client_command, {ClientCommands.tube_context(), tube_context}}
-  #     )
-  #
-  #     assert_receive {:dispatcher, data}, 1_000
-  #     ^tube_context = validate_replies(ClientCommands.tube_context(), data)
-  #
-  #     # job insert
-  #     j1 = new_job(100, init_delay: 0, priority: 0)
-  #     send(client1, {:client_command, {ClientCommands.job_save(), j1}})
-  #
-  #     assert_receive {{:tube, _}, data}, 1_000
-  #     j1_id = validate_replies(ClientCommands.job_save(), data)
-  #
-  #     assert j1_id > 0
-  #     # job insert
-  #     j2 = new_job(100, init_delay: 10, priority: 10)
-  #     send(client1, {:client_command, {ClientCommands.job_save(), j2}})
-  #     assert_receive {{:tube, _}, response}, 1_000
-  #     j2_id = validate_replies(ClientCommands.job_save(), response)
-  #
-  #     assert j2_id > 0
-  #     assert j1_id != j2_id
-  #
-  #     # new client
-  #     client2 = new_client()
-  #     send(client2, {:client_command, :connected})
-  #
-  #     # job request
-  #     command = ClientCommands.job_request()
-  #     send(client2, {:client_command, {command, []}})
-  #     assert_receive {{:tube, _}, raw_job_data}, 1_000
-  #     # j1 has the first priority
-  #     {^j1_id, job_size, job_data} = validate_replies(command, raw_job_data)
-  #     {:job, job_id, _, _, {job_body_size, job_body}} = j1
-  #
-  #     assert j1_id == job_id
-  #     assert job_size == job_body_size
-  #     assert job_body == job_data
-  #
-  #     # new job request
-  #     command = ClientCommands.job_request()
-  #     send(client2, {:client_command, {command, []}})
-  #     assert_receive {{:tube, _}, raw_job_data}, 1_000
-  #     # j1 has the first priority
-  #     {^j2_id, job_size, job_data} = validate_replies(command, raw_job_data)
-  #     {:job, job_id, _, _, {job_body_size, job_body}} = j2
-  #
-  #     assert j2_id == job_id
-  #     assert job_size == job_body_size
-  #     assert job_body == job_data
-  #   end
-  # end
 
   defp job_opts(job_delay, job_priority, job_ttr) do
     [priority: job_priority, time_to_run: job_ttr, init_delay: job_delay]
@@ -204,6 +153,11 @@ defmodule ExoBeans.Test.Client do
       ClientCommands.tube_context() ->
         assert ["USING", some_tube] = server_reply
         some_tube
+
+      ClientCommands.job_purge() ->
+        # we expect only not_found or deleted with this request
+        assert length(server_reply) == 1
+        server_reply |> hd
     end
   end
 

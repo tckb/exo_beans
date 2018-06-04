@@ -87,6 +87,20 @@ defmodule ExoBeans.Tube.Job do
       defevent delay(delay) do
         next_state(:delayed, %{delay: delay, r_pid: nil})
       end
+
+      @doc """
+      burries the current job
+      """
+      defevent bury do
+        next_state(:buried)
+      end
+
+      @doc """
+      marks the current job for deletion. the actual deletion will be taken cared by tube
+      """
+      defevent delete do
+        next_state(:terminated)
+      end
     end
 
     defstate reserved do
@@ -95,13 +109,6 @@ defmodule ExoBeans.Tube.Job do
       """
       defevent release do
         next_state(:ready, %{delay: 0, r_pid: nil})
-      end
-
-      @doc """
-      burries the current job
-      """
-      defevent bury do
-        next_state(:buried)
       end
 
       @doc """
@@ -129,7 +136,7 @@ defmodule ExoBeans.Tube.Job do
     end
 
     defstate terminated do
-      defevent(_, do: raise("Job terminated"))
+      defevent(_, do: raise(ArgumentError, "Job is already DEAD!"))
     end
   end
 end
