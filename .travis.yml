@@ -24,7 +24,7 @@ jobs:
     - stage: dialyzer
       env:
         - MIX_ENV=dev
-      before_script: travis_wait mix dialyzer --plt
+      before_script: mix dialyzer --plt
       script: mix dialyzer --halt-exit-status
     - stage: test
       env:
