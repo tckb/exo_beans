@@ -46,7 +46,7 @@ defmodule ExoBeans.Test.Basic do
     {:job, _, _, {_, _, job_state}, _} =
       Job.new({length, some_data}, job_opts(0, 10, 20))
 
-    # check the job metadata
+    # reserve, bury & delete
     assert job_state.data.delay == 0
     assert job_state.state == :ready
 
@@ -59,6 +59,46 @@ defmodule ExoBeans.Test.Basic do
 
     assert new_job_state.state == :ready
     assert new_job_state.data.r_pid == nil
+
+    new_job_state = new_job_state |> JobState.bury()
+    assert new_job_state.state == :buried
+
+    new_job_state = new_job_state |> JobState.kick()
+    assert new_job_state.state == :ready
+
+    new_job_state = new_job_state |> JobState.delete()
+    assert new_job_state.state == :terminated
+
+    # delete buried job
+    {:job, _, _, {_, _, job_state}, _} =
+      Job.new({length, some_data}, job_opts(0, 10, 20))
+
+    new_job_state = job_state |> JobState.bury()
+    assert new_job_state.state == :buried
+
+    new_job_state = new_job_state |> JobState.delete()
+    assert new_job_state.state == :terminated
+
+    # delete a reserved job
+    {:job, _, _, {_, _, job_state}, _} =
+      Job.new({length, some_data}, job_opts(0, 10, 20))
+
+    assert job_state.data.delay == 0
+    assert job_state.state == :ready
+
+    new_job_state = job_state |> JobState.reserve(self())
+
+    assert new_job_state.state == :reserved
+    assert new_job_state.data.r_pid == self()
+
+    new_job_state = new_job_state |> JobState.delete()
+    assert new_job_state.state == :terminated
+
+    # try to do anything with terminated job
+    # try to resurrect terminated job
+    assert_raise(ArgumentError, fn ->
+      new_job_state |> JobState.kick()
+    end)
   end
 
   test "create a tube" do
