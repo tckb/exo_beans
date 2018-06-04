@@ -145,7 +145,8 @@ defmodule ExoBeans.Test.BlackBox do
 
       {:reserved, ^job, ^job_data} = client |> :ebeanstalkd.reserve()
 
-      # block for more jobs, after `job_time_to_run-1` server will inform that deadline for previous job is soon approching!
+      # block for more jobs, after `job_time_to_run-1` server will inform
+      # that deadline for previous job is soon approching!
       {:deadline_soon} = client |> :ebeanstalkd.reserve()
 
       # do nothing! do not release the job, server will automatically release is
